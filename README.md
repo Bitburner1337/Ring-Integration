@@ -4,7 +4,7 @@ Eigene Ring-Integration (Domain `ring_plus`), basierend auf der offiziellen
 Home-Assistant-Ring-Integration, aber unabhängig von Core-Updates und mit
 Erweiterungen.
 
-## Stand (v0.3.0)
+## Stand (v0.4.0)
 
 - Alles, was die offizielle Ring-Integration kann: Anmeldung mit 2FA,
   Kameras (Live-Ansicht per WebRTC, letzte Aufnahme), Event-Entitäten für
@@ -29,6 +29,10 @@ Erweiterungen.
   Durchlauf geholt (bis zu 5 Versuche, nur Aufnahmen der letzten 24 h).
   Schutz: unter 2 GB freiem Speicher wird pausiert; lokale Clips werden nach
   7 Tagen gelöscht.
+
+- **Mediathek:** Im HA-Medienbrowser unter „Ring Plus“: Kamera → Tag
+  („Heute, 25.11.2026 (3 Clips)“) → Clip („11:35:54 · Klingeln“) mit
+  Vorschaubild, neueste zuerst.
 
 > Tipp: Den Ordner „Medien“ aus den automatischen HA-Backups ausnehmen,
 > sonst landen die Clips in jedem Backup.

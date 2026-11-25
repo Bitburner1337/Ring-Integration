@@ -1,14 +1,23 @@
 {
   "domain": "ring_plus",
   "name": "Ring Plus",
-  "codeowners": ["@Bitburner1337"],
+  "codeowners": [
+    "@Bitburner1337"
+  ],
   "config_flow": true,
-  "dependencies": ["ffmpeg"],
+  "dependencies": [
+    "ffmpeg",
+    "media_source"
+  ],
   "documentation": "https://github.com/Bitburner1337/Ring-Integration",
   "integration_type": "hub",
   "iot_class": "cloud_push",
   "issue_tracker": "https://github.com/Bitburner1337/Ring-Integration/issues",
-  "loggers": ["ring_doorbell"],
-  "requirements": ["ring-doorbell>=0.9.14"],
-  "version": "0.3.0"
+  "loggers": [
+    "ring_doorbell"
+  ],
+  "requirements": [
+    "ring-doorbell>=0.9.14"
+  ],
+  "version": "0.4.0"
 }
