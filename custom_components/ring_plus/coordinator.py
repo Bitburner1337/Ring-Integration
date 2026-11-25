@@ -56,6 +56,7 @@ class RingData:
     devices_coordinator: RingDataCoordinator
     listen_coordinator: RingListenCoordinator
     clips: Any = None  # ClipManager (ring_plus)
+    history: Any = None  # EventHistory (ring_plus)
 
 
 type RingConfigEntry = ConfigEntry[RingData]
@@ -179,6 +180,7 @@ class RingListenCoordinator(BaseDataUpdateCoordinatorProtocol):
         self.last_reconnect: datetime | None = None
         self.last_reconnect_reason: str | None = None
         self._health_listeners: list[CALLBACK_TYPE] = []
+        self._event_callbacks: list[Callable[[RingEvent], None]] = []
         self._not_started_checks = 0
         self._restart_attempt = 0
         self._next_restart_allowed = 0.0
@@ -262,6 +264,25 @@ class RingListenCoordinator(BaseDataUpdateCoordinatorProtocol):
         self.index_alerts()
         self._async_update_listeners(event.doorbot_id)
         self._notify_health()
+        for event_callback in list(self._event_callbacks):
+            try:
+                event_callback(event)
+            except Exception:  # one broken consumer must not stop the others
+                self.logger.exception("Error in Ring event consumer")
+
+    @callback
+    def async_add_event_callback(
+        self, event_callback: Callable[[RingEvent], None]
+    ) -> CALLBACK_TYPE:
+        """Get every realtime event (used by the event history)."""
+        self._event_callbacks.append(event_callback)
+
+        @callback
+        def remove() -> None:
+            with suppress(ValueError):
+                self._event_callbacks.remove(event_callback)
+
+        return remove
 
     # ---- watchdog -------------------------------------------------------
 

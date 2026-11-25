@@ -85,6 +85,7 @@ class ClipManager:
         self._task: asyncio.Task | None = None
         self._again = False
         self._unsubs: list[Any] = []
+        self._saved_callbacks: list[Any] = []
         media = hass.config.media_dirs.get("local") or hass.config.path("media")
         self.root = Path(media) / "ring"
         # Shown later by sensors (phase 7)
@@ -241,6 +242,29 @@ class ClipManager:
         self.last_clip_time = created
         self.last_error = None
         _LOGGER.info("Saved Ring clip %s", mp4)
+        for saved_callback in list(self._saved_callbacks):
+            try:
+                saved_callback(ding_id, str(mp4))
+            except Exception:
+                _LOGGER.exception("Error in clip-saved consumer")
+
+    # ---- for the event history (phase 5) --------------------------------
+
+    @callback
+    def async_add_saved_listener(self, saved_callback: Any) -> Any:
+        """Call saved_callback(ding_id, path) after each saved clip."""
+        self._saved_callbacks.append(saved_callback)
+
+        @callback
+        def remove() -> None:
+            with suppress(ValueError):
+                self._saved_callbacks.remove(saved_callback)
+
+        return remove
+
+    def clip_path(self, ding_id: str) -> str | None:
+        """Path of the saved clip for this Ring event id, if any."""
+        return (self._done.get(ding_id) or {}).get("path")
 
     async def _async_fetch(self, url: str, target: Path) -> int:
         """Stream the MP4 to disk without loading it into memory."""

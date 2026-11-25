@@ -1,5 +1,10 @@
 {
   "entity": {
+    "calendar": {
+      "history": {
+        "default": "mdi:calendar-clock"
+      }
+    },
     "number": {
       "doorbell_volume": {
         "default": "mdi:bell-ring"
@@ -26,6 +31,9 @@
       },
       "wifi_signal_strength": {
         "default": "mdi:wifi"
+      },
+      "recent_events": {
+        "default": "mdi:format-list-bulleted"
       }
     },
     "switch": {

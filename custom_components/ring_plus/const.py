@@ -15,6 +15,7 @@ DEFAULT_ENTITY_NAMESPACE = "ring_plus"
 
 PLATFORMS = [
     Platform.BUTTON,
+    Platform.CALENDAR,
     Platform.CAMERA,
     Platform.EVENT,
     Platform.LIGHT,
@@ -54,3 +55,9 @@ CLIP_MAX_FAILURES: Final = 5
 CLIP_MIN_FREE_BYTES: Final = 2 * 1024**3  # pause downloads below 2 GB free
 CLIP_RETENTION = timedelta(days=7)  # local files older than this are deleted
 CLIP_STORE_KEEP = timedelta(days=14)  # remember downloaded ids this long
+
+# Event history (phase 5)
+HISTORY_KEEP = timedelta(days=30)
+HISTORY_MAX_EVENTS = 3000
+HISTORY_BACKFILL_LIMIT = 50  # entries per camera, read once at startup
+HISTORY_SENSOR_EVENTS = 20  # events shown in the "Letzte Events" sensor

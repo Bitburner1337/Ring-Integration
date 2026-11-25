@@ -4,7 +4,7 @@ Eigene Ring-Integration (Domain `ring_plus`), basierend auf der offiziellen
 Home-Assistant-Ring-Integration, aber unabhängig von Core-Updates und mit
 Erweiterungen.
 
-## Stand (v0.4.0)
+## Stand (v0.5.0)
 
 - Alles, was die offizielle Ring-Integration kann: Anmeldung mit 2FA,
   Kameras (Live-Ansicht per WebRTC, letzte Aufnahme), Event-Entitäten für
@@ -33,14 +33,18 @@ Erweiterungen.
 - **Mediathek:** Im HA-Medienbrowser unter „Ring Plus“: Kamera → Tag
   („Heute, 25.11.2026 (3 Clips)“) → Clip („11:35:54 · Klingeln“) mit
   Vorschaubild, neueste zuerst.
+- **Event-Verlauf:** Kalender „Ring Plus Verlauf“ mit jedem Event als
+  Eintrag („Hof: Bewegung“), 30 Tage lang. Sensor „Events heute“ zählt die
+  Events des Tages, das Attribut `events` enthält die letzten 20 (Zeit,
+  Kamera, Art, Clip). Beim Start werden fehlende Events aus dem
+  Ring-Verlauf nachgeladen.
 
 > Tipp: Den Ordner „Medien“ aus den automatischen HA-Backups ausnehmen,
 > sonst landen die Clips in jedem Backup.
 
 ## Geplant
 
-Mediathek,
-Event-Verlauf, Cloud-Archiv über die Internxt-Integration, Optionen-Dialog.
+Cloud-Archiv über die Internxt-Integration, Optionen-Dialog.
 
 ## Installation
 

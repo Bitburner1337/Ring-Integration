@@ -58,6 +58,11 @@
         "name": "Open door"
       }
     },
+    "calendar": {
+      "history": {
+        "name": "History"
+      }
+    },
     "camera": {
       "last_recording": {
         "name": "Last recording"
@@ -138,6 +143,14 @@
           },
           "kind": {
             "name": "Kind"
+          }
+        }
+      },
+      "recent_events": {
+        "name": "Events today",
+        "state_attributes": {
+          "events": {
+            "name": "Recent events"
           }
         }
       }

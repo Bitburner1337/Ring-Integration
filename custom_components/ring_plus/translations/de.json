@@ -58,6 +58,11 @@
         "name": "Tür öffnen"
       }
     },
+    "calendar": {
+      "history": {
+        "name": "Verlauf"
+      }
+    },
     "camera": {
       "last_recording": {
         "name": "Letzte Aufnahme"
@@ -138,6 +143,14 @@
           },
           "kind": {
             "name": "Art"
+          }
+        }
+      },
+      "recent_events": {
+        "name": "Events heute",
+        "state_attributes": {
+          "events": {
+            "name": "Letzte Events"
           }
         }
       }
