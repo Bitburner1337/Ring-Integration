@@ -1,0 +1,148 @@
+{
+  "config": {
+    "abort": {
+      "already_configured": "Dieses Konto ist bereits eingerichtet",
+      "reauth_successful": "Erneute Anmeldung erfolgreich",
+      "reconfigure_successful": "Neu-Konfiguration erfolgreich"
+    },
+    "error": {
+      "invalid_auth": "Anmeldung fehlgeschlagen (Benutzername, Passwort oder Code falsch)",
+      "unknown": "Unerwarteter Fehler"
+    },
+    "step": {
+      "2fa": {
+        "data": {
+          "2fa": "Bestätigungscode"
+        },
+        "data_description": {
+          "2fa": "Der Code, den Ring dir gerade geschickt hat (SMS, E-Mail oder Authenticator-App – je nach Einstellung in deinem Ring-Konto)."
+        },
+        "title": "Zwei-Faktor-Anmeldung"
+      },
+      "reauth_confirm": {
+        "data": {
+          "password": "Passwort"
+        },
+        "data_description": {
+          "password": "Das Passwort deines Ring-Kontos."
+        },
+        "description": "Ring Plus muss sich für dein Konto {username} neu anmelden",
+        "title": "Erneut anmelden"
+      },
+      "reconfigure": {
+        "data": {
+          "password": "Passwort"
+        },
+        "data_description": {
+          "password": "Das Passwort deines Ring-Kontos."
+        },
+        "description": "Legt für {username} ein neues autorisiertes Gerät bei ring.com an",
+        "title": "Ring Plus neu konfigurieren"
+      },
+      "user": {
+        "data": {
+          "password": "Passwort",
+          "username": "Benutzername"
+        },
+        "data_description": {
+          "password": "Das Passwort deines Ring-Kontos.",
+          "username": "Die E-Mail-Adresse deines Ring-Kontos."
+        },
+        "title": "Mit Ring-Konto anmelden (Ring Plus)"
+      }
+    }
+  },
+  "entity": {
+    "button": {
+      "open_door": {
+        "name": "Tür öffnen"
+      }
+    },
+    "camera": {
+      "last_recording": {
+        "name": "Letzte Aufnahme"
+      },
+      "live_view": {
+        "name": "Live-Ansicht"
+      }
+    },
+    "event": {
+      "ding": {
+        "name": "Klingeln",
+        "state_attributes": {
+          "event_type": {
+            "state": {
+              "ring": "Klingeln"
+            }
+          }
+        }
+      },
+      "intercom_unlock": {
+        "name": "Gegensprechanlage entriegelt"
+      }
+    },
+    "light": {
+      "light": {
+        "name": "Licht"
+      }
+    },
+    "number": {
+      "doorbell_volume": {
+        "name": "Klingellautstärke"
+      },
+      "mic_volume": {
+        "name": "Mikrofonlautstärke"
+      },
+      "voice_volume": {
+        "name": "Sprachlautstärke"
+      },
+      "volume": {
+        "name": "Lautstärke"
+      }
+    },
+    "sensor": {
+      "last_activity": {
+        "name": "Letzte Aktivität"
+      },
+      "last_recording": {
+        "name": "Letzte Aufzeichnung"
+      },
+      "wifi_signal_category": {
+        "name": "WLAN-Signalkategorie"
+      }
+    },
+    "siren": {
+      "siren": {
+        "name": "Sirene"
+      }
+    },
+    "switch": {
+      "in_home_chime": {
+        "name": "Hausgong"
+      },
+      "motion_detection": {
+        "name": "Bewegungserkennung"
+      }
+    }
+  },
+  "exceptions": {
+    "api_authentication": {
+      "message": "Anmeldefehler bei der Kommunikation mit Ring"
+    },
+    "api_error": {
+      "message": "Fehler bei der Kommunikation mit Ring"
+    },
+    "api_timeout": {
+      "message": "Zeitüberschreitung bei der Kommunikation mit Ring"
+    },
+    "chime_type_unknown": {
+      "message": "Der Typ des Hausgongs hat sich geändert und wird nicht mehr unterstützt. Bitte Ring Plus neu laden."
+    },
+    "no_subscription": {
+      "message": "Für Schnappschüsse ist ein Ring-Protect-Abo nötig"
+    },
+    "sdp_m_line_index_required": {
+      "message": "Fehler beim Aufbau des Streams für {device}"
+    }
+  }
+}

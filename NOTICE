@@ -1,0 +1,8 @@
+Ring Plus
+Copyright 2026 Bitburner1337
+
+This integration is based on the Ring integration from Home Assistant Core
+(https://github.com/home-assistant/core, homeassistant/components/ring),
+Copyright Home Assistant contributors, licensed under the Apache License 2.0.
+Changes: own domain "ring_plus", support for additional device kinds
+(compat.py), German translations, and further features listed in the README.
