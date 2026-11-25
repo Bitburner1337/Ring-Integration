@@ -1,9 +1,11 @@
 name: Release
 
+# Creates a GitHub release (and tag) for the version in manifest.json
+# whenever main changes and that version has no release yet.
 on:
   push:
-    tags:
-      - "v*"
+    branches: [main]
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -13,10 +15,22 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Check manifest version matches tag
+        with:
+          fetch-depth: 0
+      - name: Read version
+        id: v
         run: |
           v=$(python3 -c "import json;print(json.load(open('custom_components/ring_plus/manifest.json'))['version'])")
-          test "v$v" = "${GITHUB_REF_NAME}" || { echo "manifest $v != tag ${GITHUB_REF_NAME}"; exit 1; }
-      - uses: softprops/action-gh-release@v2
+          echo "tag=v$v" >> "$GITHUB_OUTPUT"
+          if git rev-parse -q --verify "refs/tags/v$v" >/dev/null; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+      - if: steps.v.outputs.exists == 'false'
+        uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ steps.v.outputs.tag }}
+          name: Ring Plus ${{ steps.v.outputs.tag }}
+          target_commitish: ${{ github.sha }}
           generate_release_notes: true
