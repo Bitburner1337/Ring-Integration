@@ -11,8 +11,10 @@ from ring_doorbell import Auth, AuthenticationError, Requires2FAError
 from homeassistant.config_entries import (
     SOURCE_REAUTH,
     SOURCE_RECONFIGURE,
+    ConfigEntry,
     ConfigFlow,
     ConfigFlowResult,
+    OptionsFlowWithReload,
 )
 from homeassistant.const import (
     CONF_DEVICE_ID,
@@ -21,14 +23,30 @@ from homeassistant.const import (
     CONF_TOKEN,
     CONF_USERNAME,
 )
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
+from homeassistant.helpers.selector import (
+    BooleanSelector,
+    NumberSelector,
+    NumberSelectorConfig,
+    NumberSelectorMode,
+)
 from homeassistant.helpers.service_info.dhcp import DhcpServiceInfo
 
 from . import get_auth_user_agent
-from .const import CONF_2FA, CONF_CONFIG_ENTRY_MINOR_VERSION, DOMAIN
+from .const import (
+    CONF_2FA,
+    CONF_ARCHIVE_ENABLED,
+    CONF_CONFIG_ENTRY_MINOR_VERSION,
+    CONF_HISTORY_DAYS,
+    CONF_RETENTION_DAYS,
+    DEFAULT_ARCHIVE_ENABLED,
+    DEFAULT_HISTORY_DAYS,
+    DEFAULT_RETENTION_DAYS,
+    DOMAIN,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -83,6 +101,12 @@ class RingConfigFlow(ConfigFlow, domain=DOMAIN):
 
     user_pass: dict[str, Any] = {}
     hardware_id: str | None = None
+
+    @staticmethod
+    @callback
+    def async_get_options_flow(config_entry: ConfigEntry) -> RingPlusOptionsFlow:
+        """Options dialog of ring_plus (phase 7)."""
+        return RingPlusOptionsFlow()
 
     @override
     async def async_step_dhcp(
@@ -254,6 +278,58 @@ class RingConfigFlow(ConfigFlow, domain=DOMAIN):
             description_placeholders={
                 CONF_USERNAME: username,
             },
+        )
+
+
+def _days(minimum: int, maximum: int) -> NumberSelector:
+    return NumberSelector(
+        NumberSelectorConfig(
+            min=minimum,
+            max=maximum,
+            step=1,
+            mode=NumberSelectorMode.BOX,
+            unit_of_measurement="d",
+        )
+    )
+
+
+OPTIONS_SCHEMA = probatio.Schema(
+    {
+        probatio.Required(
+            CONF_RETENTION_DAYS, default=DEFAULT_RETENTION_DAYS
+        ): _days(1, 60),
+        probatio.Required(
+            CONF_ARCHIVE_ENABLED, default=DEFAULT_ARCHIVE_ENABLED
+        ): BooleanSelector(),
+        probatio.Required(
+            CONF_HISTORY_DAYS, default=DEFAULT_HISTORY_DAYS
+        ): _days(7, 90),
+    }
+)
+
+
+class RingPlusOptionsFlow(OptionsFlowWithReload):
+    """Local retention, cloud archive on/off, history length.
+
+    HA reloads the integration by itself when the options changed.
+    """
+
+    async def async_step_init(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        if user_input is not None:
+            return self.async_create_entry(
+                data={
+                    CONF_RETENTION_DAYS: int(user_input[CONF_RETENTION_DAYS]),
+                    CONF_ARCHIVE_ENABLED: bool(user_input[CONF_ARCHIVE_ENABLED]),
+                    CONF_HISTORY_DAYS: int(user_input[CONF_HISTORY_DAYS]),
+                }
+            )
+        return self.async_show_form(
+            step_id="init",
+            data_schema=self.add_suggested_values_to_schema(
+                OPTIONS_SCHEMA, self.config_entry.options
+            ),
         )
 
 

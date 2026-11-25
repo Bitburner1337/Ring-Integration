@@ -73,8 +73,15 @@ def _parse_created(value: Any) -> datetime | None:
 class ClipManager:
     """Downloads finished Ring recordings into the media folder."""
 
-    def __init__(self, hass: HomeAssistant, entry_id: str, devices_coordinator: Any) -> None:
+    def __init__(
+        self,
+        hass: HomeAssistant,
+        entry_id: str,
+        devices_coordinator: Any,
+        retention: timedelta = CLIP_RETENTION,
+    ) -> None:
         self.hass = hass
+        self.retention = retention
         self._coordinator = devices_coordinator
         self._store: Store[dict[str, Any]] = Store(
             hass, STORE_VERSION, f"{DOMAIN}.{entry_id}.clips"
@@ -89,6 +96,10 @@ class ClipManager:
         # ClipArchive (phase 6): when set, a clip is only deleted locally
         # after Internxt confirmed its upload.
         self.archive: Any = None
+        # Older history entries (from the startup backfill of the event
+        # history): device id -> (device, entries). The minute update only
+        # sees the last 10 entries per camera, so busy cameras could miss clips.
+        self._extra: dict[Any, tuple[Any, list[dict[str, Any]]]] = {}
         media = hass.config.media_dirs.get("local") or hass.config.path("media")
         self.root = Path(media) / "ring"
         # Shown later by sensors (phase 7)
@@ -150,8 +161,14 @@ class ClipManager:
         data = self._coordinator.data
         if data is None:
             return []
-        for device in data.video_devices:
-            for entry in getattr(device, "last_history", None) or []:
+        sources: list[tuple[Any, list[dict[str, Any]]]] = [
+            (device, list(getattr(device, "last_history", None) or []))
+            for device in data.video_devices
+        ]
+        sources.extend(self._extra.values())
+        seen: set[str] = set()
+        for device, entries in sources:
+            for entry in entries:
                 try:
                     ding_id = str(entry["id"])
                     kind = entry.get("kind")
@@ -159,6 +176,9 @@ class ClipManager:
                 except (KeyError, TypeError, AttributeError):
                     continue
                 created = _parse_created(entry.get("created_at"))
+                if ding_id in seen:
+                    continue
+                seen.add(ding_id)
                 if (
                     kind not in CLIP_KINDS
                     or created is None
@@ -254,6 +274,13 @@ class ClipManager:
     # ---- for the event history (phase 5) --------------------------------
 
     @callback
+    def add_history(self, device: Any, entries: list[dict[str, Any]]) -> None:
+        """Look at more (older) history entries of a camera for missing clips."""
+        if entries:
+            self._extra[device.id] = (device, list(entries))
+            self._on_update()
+
+    @callback
     def async_add_saved_listener(self, saved_callback: Any) -> Any:
         """Call saved_callback(ding_id, path) after each saved clip."""
         self._saved_callbacks.append(saved_callback)
@@ -310,7 +337,7 @@ class ClipManager:
         With the cloud archive active, only clips whose upload Internxt
         confirmed are deleted; the others stay until they are uploaded.
         """
-        limit = time.time() - CLIP_RETENTION.total_seconds()
+        limit = time.time() - self.retention.total_seconds()
         archive = self.archive
         uploaded = archive.uploaded_paths() if archive is not None else None
 
@@ -352,11 +379,21 @@ class ClipManager:
 
         removed, removed_mp4, kept = await self.hass.async_add_executor_job(_clean)
         if removed:
-            _LOGGER.info("Removed %s old Ring clip files (older than %s)", removed, CLIP_RETENTION)
+            _LOGGER.info("Removed %s old Ring clip files (older than %s)", removed, self.retention)
         if kept:
             _LOGGER.info("Keeping %s old Ring clips until their upload to Internxt is confirmed", kept)
         if archive is not None and removed_mp4:
             archive.forget(removed_mp4)
+        oldest = dt_util.utcnow() - CLIP_MAX_AGE
+        for key, (device, entries) in list(self._extra.items()):
+            fresh = [
+                e for e in entries
+                if (created := _parse_created(e.get("created_at"))) and created > oldest
+            ]
+            if fresh:
+                self._extra[key] = (device, fresh)
+            else:
+                del self._extra[key]
         keep_after = time.time() - CLIP_STORE_KEEP.total_seconds()
         self._done = {k: v for k, v in self._done.items() if v.get("ts", 0) > keep_after}
         if len(self._failures) > 500:

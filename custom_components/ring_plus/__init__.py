@@ -1,5 +1,6 @@
 """Support for Ring Doorbell/Chimes."""
 
+from datetime import timedelta
 import logging
 from typing import Any, cast
 import uuid
@@ -16,7 +17,17 @@ from . import fcm_fix
 from .archive import ClipArchive
 from .clips import ClipManager
 from .history import EventHistory
-from .const import CONF_LISTEN_CREDENTIALS, DOMAIN, PLATFORMS
+from .const import (
+    CONF_ARCHIVE_ENABLED,
+    CONF_HISTORY_DAYS,
+    CONF_LISTEN_CREDENTIALS,
+    CONF_RETENTION_DAYS,
+    DEFAULT_ARCHIVE_ENABLED,
+    DEFAULT_HISTORY_DAYS,
+    DEFAULT_RETENTION_DAYS,
+    DOMAIN,
+    PLATFORMS,
+)
 from .coordinator import (
     RingConfigEntry,
     RingData,
@@ -81,18 +92,33 @@ async def async_setup_entry(hass: HomeAssistant, entry: RingConfigEntry) -> None
         listen_coordinator=listen_coordinator,
     )
 
+    # Options (phase 7), changed in the integration's "Configure" dialog
+    retention = timedelta(
+        days=entry.options.get(CONF_RETENTION_DAYS, DEFAULT_RETENTION_DAYS)
+    )
+    history_keep = timedelta(
+        days=entry.options.get(CONF_HISTORY_DAYS, DEFAULT_HISTORY_DAYS)
+    )
+    archive_enabled = entry.options.get(CONF_ARCHIVE_ENABLED, DEFAULT_ARCHIVE_ENABLED)
+
     # Phase 3: save finished recordings to /media/ring
-    clips = ClipManager(hass, entry.entry_id, devices_coordinator)
+    clips = ClipManager(hass, entry.entry_id, devices_coordinator, retention)
     entry.runtime_data.clips = clips
     # Phase 6: upload clips to Internxt (before clips start, so the
     # retention never deletes a clip that is not in the cloud yet)
-    archive = ClipArchive(hass, entry.entry_id, clips)
+    archive = ClipArchive(hass, entry.entry_id, clips, enabled=archive_enabled)
     entry.runtime_data.archive = archive
     await archive.async_setup()
     await clips.async_setup()
     # Phase 5: event history (calendar + sensor), needed by the platforms
     history = EventHistory(
-        hass, entry.entry_id, devices_coordinator, listen_coordinator, clips
+        hass,
+        entry.entry_id,
+        devices_coordinator,
+        listen_coordinator,
+        clips,
+        keep=history_keep,
+        clip_retention=retention,
     )
     entry.runtime_data.history = history
     await history.async_setup()

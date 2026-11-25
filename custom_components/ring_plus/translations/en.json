@@ -163,7 +163,8 @@
               "idle": "All uploaded",
               "uploading": "Uploading",
               "retry_wait": "Waiting to retry",
-              "no_account": "Internxt not available"
+              "no_account": "Internxt not available",
+              "disabled": "Switched off"
             }
           },
           "uploaded_local_clips": {
@@ -216,6 +217,24 @@
     },
     "sdp_m_line_index_required": {
       "message": "Error negotiating stream for {device}"
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Ring Plus options",
+        "description": "Clips are stored under /media/ring. With the cloud archive, a clip is deleted locally only when it is older than the retention AND Internxt confirmed its upload. Without the archive, by age only.",
+        "data": {
+          "retention_days": "Keep clips locally (days)",
+          "archive_enabled": "Upload clips to Internxt (cloud archive)",
+          "history_days": "Event history in the calendar (days)"
+        },
+        "data_description": {
+          "retention_days": "Older clips are deleted locally (with the cloud archive only after a confirmed upload).",
+          "archive_enabled": "Needs the Internxt integration. Target: Ring-Clips/camera/date.",
+          "history_days": "How long events stay in the History calendar."
+        }
+      }
     }
   }
 }

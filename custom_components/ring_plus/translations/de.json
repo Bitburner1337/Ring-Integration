@@ -163,7 +163,8 @@
               "idle": "Alles hochgeladen",
               "uploading": "Lädt hoch",
               "retry_wait": "Wartet auf neuen Versuch",
-              "no_account": "Internxt nicht verfügbar"
+              "no_account": "Internxt nicht verfügbar",
+              "disabled": "Ausgeschaltet"
             }
           },
           "uploaded_local_clips": {
@@ -216,6 +217,24 @@
     },
     "sdp_m_line_index_required": {
       "message": "Fehler beim Aufbau des Streams für {device}"
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Ring Plus Optionen",
+        "description": "Clips liegen lokal unter /media/ring. Mit Cloud-Archiv wird ein Clip lokal erst gelöscht, wenn er älter als die Aufbewahrung ist UND Internxt den Upload bestätigt hat. Ohne Cloud-Archiv nur nach Alter.",
+        "data": {
+          "retention_days": "Clips lokal aufbewahren (Tage)",
+          "archive_enabled": "Clips nach Internxt hochladen (Cloud-Archiv)",
+          "history_days": "Event-Verlauf im Kalender (Tage)"
+        },
+        "data_description": {
+          "retention_days": "Ältere Clips werden lokal gelöscht (mit Cloud-Archiv erst nach bestätigtem Upload).",
+          "archive_enabled": "Braucht die Internxt-Integration. Ziel: Ring-Clips/Kamera/Datum.",
+          "history_days": "So lange bleiben Events im Kalender „Verlauf“."
+        }
+      }
     }
   }
 }

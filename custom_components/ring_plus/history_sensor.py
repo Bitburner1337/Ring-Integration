@@ -68,7 +68,7 @@ class RingRecentEventsSensor(SensorEntity):
                     "time": dt_util.as_local(e.start).isoformat(timespec="seconds"),
                     "camera": e.camera,
                     "kind": e.kind,
-                    "clip": e.clip_media_id,
+                    "clip": self._history.media_id(e),
                 }
                 for e in self._history.events[:HISTORY_SENSOR_EVENTS]
             ]

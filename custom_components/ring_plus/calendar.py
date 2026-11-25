@@ -68,7 +68,7 @@ class RingHistoryCalendar(CalendarEntity):
             start=event.start,
             end=event.end,
             summary=f"{event.camera}: {text.get(event.kind, event.kind)}",
-            description=text["clip"] if event.clip_media_id else None,
+            description=text["clip"] if self._history.media_id(event) else None,
             location=event.camera,
             uid=event.id,
         )

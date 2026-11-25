@@ -35,6 +35,7 @@ from .const import (
     ARCHIVE_BACKOFF,
     ARCHIVE_IDLE_RECHECK,
     ARCHIVE_ROOT_FOLDER,
+    ARCHIVE_START_GRACE,
     ARCHIVE_UPLOAD_TIMEOUT,
     DOMAIN,
 )
@@ -49,7 +50,8 @@ ST_IDLE = "idle"  # everything uploaded
 ST_UPLOADING = "uploading"
 ST_RETRY = "retry_wait"  # last upload failed, waiting
 ST_NO_ACCOUNT = "no_account"  # Internxt not set up / not loaded
-ARCHIVE_STATES = [ST_IDLE, ST_UPLOADING, ST_RETRY, ST_NO_ACCOUNT]
+ST_DISABLED = "disabled"  # switched off in the options
+ARCHIVE_STATES = [ST_IDLE, ST_UPLOADING, ST_RETRY, ST_NO_ACCOUNT, ST_DISABLED]
 
 
 class _Skip(Exception):
@@ -59,8 +61,11 @@ class _Skip(Exception):
 class ClipArchive:
     """Upload queue from /media/ring to Internxt."""
 
-    def __init__(self, hass: HomeAssistant, entry_id: str, clips: Any) -> None:
+    def __init__(
+        self, hass: HomeAssistant, entry_id: str, clips: Any, enabled: bool = True
+    ) -> None:
         self.hass = hass
+        self.enabled = enabled
         self._clips = clips
         self._store: Store[dict[str, Any]] = Store(
             hass, STORE_VERSION, f"{DOMAIN}.{entry_id}.archive"
@@ -73,6 +78,8 @@ class ClipArchive:
         self._unsubs: list[CALLBACK_TYPE] = []
         self._listeners: list[CALLBACK_TYPE] = []
         self._failures = 0
+        self._started = time.monotonic()
+        self._warned_no_account = False
         # shown by the sensor
         self.status = ST_IDLE
         self.last_upload: datetime | None = None
@@ -85,6 +92,11 @@ class ClipArchive:
     async def async_setup(self) -> None:
         data = await self._store.async_load() or {}
         self._uploaded = data.get("uploaded", {})
+        if not self.enabled:
+            # Off: no uploads, and clips.py deletes by age only (as before
+            # phase 6). We keep the list of earlier uploads for later.
+            self.status = ST_DISABLED
+            return
         # Clips that exist locally but are not in Internxt yet (also all
         # clips saved before phase 6). Forget uploads whose file is gone.
         root = self._clips.root
@@ -190,16 +202,25 @@ class ClipArchive:
 
             account = self._account()
             if account is None:
-                if self.status != ST_NO_ACCOUNT:
+                # Right after a restart Internxt may simply not be loaded yet:
+                # only warn when it is still missing after the grace time.
+                in_grace = time.monotonic() - self._started < ARCHIVE_START_GRACE
+                if not in_grace and not self._warned_no_account:
+                    self._warned_no_account = True
                     _LOGGER.warning(
                         "Internxt integration not loaded; %s Ring clips wait for upload",
                         len(self._queue),
                     )
                 self.last_error = "Internxt not loaded"
                 self._set_status(ST_NO_ACCOUNT)
-                await asyncio.sleep(ARCHIVE_IDLE_RECHECK.total_seconds())
+                await asyncio.sleep(
+                    min(30, ARCHIVE_IDLE_RECHECK.total_seconds())
+                    if in_grace
+                    else ARCHIVE_IDLE_RECHECK.total_seconds()
+                )
                 continue
 
+            self._warned_no_account = False
             mp4 = self._queue[0]
             self._set_status(ST_UPLOADING)
             try:

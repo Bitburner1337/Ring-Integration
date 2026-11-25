@@ -1,6 +1,6 @@
 """Event history for ring_plus (phase 5).
 
-Keeps a list of all Ring events (motion, ding) of the last 30 days, like
+Keeps a list of all Ring events (motion, ding) of the last 30 days (option), like
 the history in the Ring app. Three sources fill it:
 
 1. Realtime events (push) -> appear within seconds.
@@ -63,10 +63,9 @@ class RingHistoryEvent:
     def end(self) -> datetime:
         return self.start + timedelta(seconds=max(self.duration, 10))
 
-    @property
-    def clip_media_id(self) -> str | None:
+    def clip_media_id(self, retention: timedelta = CLIP_RETENTION) -> str | None:
         """media-source:// id for the media browser / players, if the clip is still local."""
-        if not self.clip or dt_util.utcnow() - self.start > CLIP_RETENTION:
+        if not self.clip or dt_util.utcnow() - self.start > retention:
             return None
         path = Path(self.clip)
         return f"media-source://{DOMAIN}/{path.parent.name}/{path.name}"
@@ -129,8 +128,12 @@ class EventHistory:
         devices_coordinator: Any,
         listen_coordinator: Any,
         clips: Any,
+        keep: timedelta = HISTORY_KEEP,
+        clip_retention: timedelta = CLIP_RETENTION,
     ) -> None:
         self.hass = hass
+        self.keep = keep
+        self.clip_retention = clip_retention
         self._devices = devices_coordinator
         self._listen = listen_coordinator
         self._clips = clips
@@ -177,6 +180,10 @@ class EventHistory:
     def events(self) -> list[RingHistoryEvent]:
         """Newest first."""
         return sorted(self._events.values(), key=lambda e: e.start, reverse=True)
+
+    def media_id(self, event: RingHistoryEvent) -> str | None:
+        """media-source id of the event's local clip (None when gone)."""
+        return event.clip_media_id(self.clip_retention)
 
     def events_between(self, start: datetime, end: datetime) -> list[RingHistoryEvent]:
         return sorted(
@@ -254,6 +261,9 @@ class EventHistory:
             for entry in entries or []:
                 if self._merge_history_entry(device, entry):
                     total += 1
+            if self._clips is not None and entries:
+                # also fetch clips the minute updates (last 10 only) missed
+                self._clips.add_history(device, entries)
             await asyncio.sleep(1)  # be gentle with the Ring API
         _LOGGER.debug("History backfill added/updated %s events", total)
         if total:
@@ -279,7 +289,7 @@ class EventHistory:
         if kind not in CLIP_KINDS:
             return False
         start = _parse_created(entry.get("created_at"))
-        if start is None or dt_util.utcnow() - start > HISTORY_KEEP:
+        if start is None or dt_util.utcnow() - start > self.keep:
             return False
         duration = _duration(entry)
 
@@ -324,7 +334,7 @@ class EventHistory:
         self._events[event.id] = event
 
     def _prune(self) -> None:
-        limit = dt_util.utcnow() - HISTORY_KEEP
+        limit = dt_util.utcnow() - self.keep
         events = sorted(
             (e for e in self._events.values() if e.start >= limit),
             key=lambda e: e.start,
