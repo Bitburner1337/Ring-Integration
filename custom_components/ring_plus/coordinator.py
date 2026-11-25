@@ -1,9 +1,12 @@
 """Data coordinators for the ring integration."""
 
-from asyncio import TaskGroup
+from asyncio import TaskGroup, timeout as asyncio_timeout
+from contextlib import suppress
+from datetime import datetime
 from collections.abc import Callable, Coroutine
 from dataclasses import dataclass
 import logging
+import time
 from typing import Any, override
 
 from ring_doorbell import (
@@ -19,14 +22,27 @@ from ring_doorbell.listen import RingEventListener
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import CALLBACK_TYPE, HomeAssistant, callback
 from homeassistant.exceptions import ConfigEntryAuthFailed
+from homeassistant.helpers.event import async_track_time_interval
 from homeassistant.helpers.update_coordinator import (
     BaseDataUpdateCoordinatorProtocol,
     DataUpdateCoordinator,
     UpdateFailed,
 )
+from homeassistant.util import dt as dt_util
 
 from .compat import has_capability
-from .const import DOMAIN, SCAN_INTERVAL
+from .const import (
+    CONN_CONNECTED,
+    CONN_CONNECTING,
+    CONN_DISCONNECTED,
+    CONN_RECONNECTING,
+    DOMAIN,
+    LISTENER_RESTART_BACKOFF,
+    LISTENER_STALE_SECONDS,
+    LISTENER_STARTING_GRACE_CHECKS,
+    SCAN_INTERVAL,
+    WATCHDOG_INTERVAL,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -126,7 +142,12 @@ class RingDataCoordinator(DataUpdateCoordinator[RingDevices]):
 
 
 class RingListenCoordinator(BaseDataUpdateCoordinatorProtocol):
-    """Global notifications coordinator."""
+    """Global notifications coordinator, with a watchdog (ring_plus).
+
+    Ring sends realtime events (ding, motion) as push messages. The push
+    client can die or hang silently; then no events arrive any more. The
+    watchdog checks every minute and builds a fresh listener when needed.
+    """
 
     config_entry: RingConfigEntry
 
@@ -142,16 +163,40 @@ class RingListenCoordinator(BaseDataUpdateCoordinatorProtocol):
         self.hass = hass
         self.logger = _LOGGER
         self.ring_api: Ring = ring_api
-        self.event_listener = RingEventListener(
-            ring_api, listen_credentials, listen_credentials_updater
-        )
+        self._listen_credentials = listen_credentials
+        self._listen_credentials_updater = listen_credentials_updater
+        self.event_listener = self._new_event_listener()
         self._listeners: dict[CALLBACK_TYPE, tuple[CALLBACK_TYPE, object | None]] = {}
         self._listen_callback_id: int | None = None
+
+        # Health / watchdog state (shown by the diagnostic sensors)
+        self.connection_state: str = CONN_CONNECTING
+        self.last_event_time: datetime | None = None
+        self.last_event_kind: str | None = None
+        self.last_event_device: str | None = None
+        self.reconnect_count = 0
+        self.last_reconnect: datetime | None = None
+        self.last_reconnect_reason: str | None = None
+        self._health_listeners: list[CALLBACK_TYPE] = []
+        self._not_started_checks = 0
+        self._restart_attempt = 0
+        self._next_restart_allowed = 0.0
+        self._restarting = False
+        self._unsub_watchdog: CALLBACK_TYPE | None = None
 
         self.config_entry = config_entry
         self.start_timeout = 10
         self.config_entry.async_on_unload(self.async_shutdown)
         self.index_alerts()
+
+    def _store_listen_credentials(self, creds: dict[str, Any]) -> None:
+        self._listen_credentials = creds
+        self._listen_credentials_updater(creds)
+
+    def _new_event_listener(self) -> RingEventListener:
+        return RingEventListener(
+            self.ring_api, self._listen_credentials, self._store_listen_credentials
+        )
 
     def index_alerts(self) -> None:
         "Index the active alerts."
@@ -162,20 +207,30 @@ class RingListenCoordinator(BaseDataUpdateCoordinatorProtocol):
 
     async def async_shutdown(self) -> None:
         """Cancel any scheduled call, and ignore new runs."""
+        if self._unsub_watchdog:
+            self._unsub_watchdog()
+            self._unsub_watchdog = None
         if self.event_listener.started:
             await self._async_stop_listen()
 
     async def _async_stop_listen(self) -> None:
-        self.logger.debug("Stopped ring listener")
-        await self.event_listener.stop()
+        self.logger.debug("Stopping ring listener")
+        try:
+            async with asyncio_timeout(10):
+                await self.event_listener.stop()
+        except Exception as err:  # noqa: BLE001
+            self.logger.debug("Error while stopping ring listener: %s", err)
         self.logger.debug("Stopped ring listener")
 
     async def _async_start_listen(self) -> None:
         """Start listening for realtime events."""
         self.logger.debug("Starting ring listener.")
-        await self.event_listener.start(
-            timeout=self.start_timeout,
-        )
+        try:
+            await self.event_listener.start(
+                timeout=self.start_timeout,
+            )
+        except (TimeoutError, RingError, OSError) as err:
+            self.logger.warning("Ring event listener could not start: %s", err)
         if self.event_listener.started is True:
             self.logger.debug("Started ring listener")
         else:
@@ -187,13 +242,134 @@ class RingListenCoordinator(BaseDataUpdateCoordinatorProtocol):
             self._on_event
         )
         self.index_alerts()
+        if self._unsub_watchdog is None:
+            self._unsub_watchdog = async_track_time_interval(
+                self.hass,
+                self._async_watchdog,
+                WATCHDOG_INTERVAL,
+                name="ring_plus listener watchdog",
+            )
+        self._evaluate_health()
         # Update the listeners so they switch from Unavailable to Unknown
         self._async_update_listeners()
 
     def _on_event(self, event: RingEvent) -> None:
         self.logger.debug("Ring event received: %s", event)
+        self.last_event_time = dt_util.utcnow()
+        self.last_event_kind = event.kind
+        self.last_event_device = event.device_name or str(event.doorbot_id)
         self.index_alerts()
         self._async_update_listeners(event.doorbot_id)
+        self._notify_health()
+
+    # ---- watchdog -------------------------------------------------------
+
+    def _receiver_status(self) -> tuple[str | None, float | None]:
+        """Run state name and last message time of the push client."""
+        receiver = getattr(self.event_listener, "_receiver", None)
+        if receiver is None:
+            return None, None
+        run_state = getattr(receiver, "run_state", None)
+        return (
+            getattr(run_state, "name", None),
+            getattr(receiver, "last_message_time", None),
+        )
+
+    def _evaluate_health(self) -> str | None:
+        """Update connection_state; return a restart reason if one is needed."""
+        run_state, last_message = self._receiver_status()
+        reason: str | None = None
+        if run_state == "STARTED" and self.event_listener.started:
+            self._not_started_checks = 0
+            if last_message is not None and (
+                time.time() - last_message > LISTENER_STALE_SECONDS
+            ):
+                reason = f"no message for {int(time.time() - last_message)} s"
+                self._set_state(CONN_DISCONNECTED)
+            else:
+                self._restart_attempt = 0
+                self._set_state(CONN_CONNECTED)
+        elif run_state in (None, "STOPPING", "STOPPED") or not (
+            self.event_listener.started
+        ):
+            reason = f"listener stopped ({run_state or 'not started'})"
+            self._set_state(CONN_DISCONNECTED)
+        else:  # CREATED, STARTING_*, RESETTING: give it some time
+            self._not_started_checks += 1
+            self._set_state(CONN_CONNECTING)
+            if self._not_started_checks > LISTENER_STARTING_GRACE_CHECKS:
+                reason = f"stuck in {run_state}"
+        return reason
+
+    async def _async_watchdog(self, now: datetime | None = None) -> None:
+        if not self._listeners or self._restarting:
+            return
+        reason = self._evaluate_health()
+        if reason is None or time.monotonic() < self._next_restart_allowed:
+            return
+        await self._async_restart_listener(reason)
+
+    async def _async_restart_listener(self, reason: str) -> None:
+        self._restarting = True
+        self.logger.warning("Ring event listener problem (%s), reconnecting", reason)
+        self._set_state(CONN_RECONNECTING)
+        try:
+            old = self.event_listener
+            if self._listen_callback_id is not None:
+                with suppress(Exception):
+                    old.remove_notification_callback(self._listen_callback_id)
+                self._listen_callback_id = None
+            await self._async_stop_listen()
+            self.event_listener = self._new_event_listener()
+            await self._async_start_listen()
+        except Exception:
+            self.logger.exception("Reconnecting the Ring event listener failed")
+        finally:
+            self._restarting = False
+            self.reconnect_count += 1
+            self.last_reconnect = dt_util.utcnow()
+            self.last_reconnect_reason = reason
+            delay = LISTENER_RESTART_BACKOFF[
+                min(self._restart_attempt, len(LISTENER_RESTART_BACKOFF) - 1)
+            ]
+            self._restart_attempt += 1
+            self._next_restart_allowed = time.monotonic() + delay
+            self._evaluate_health()
+            self._notify_health()
+            if self.connection_state == CONN_CONNECTED:
+                self.logger.info("Ring event listener reconnected")
+
+    def _set_state(self, state: str) -> None:
+        if state != self.connection_state:
+            self.connection_state = state
+            self._notify_health()
+
+    @property
+    def last_heartbeat(self) -> datetime | None:
+        """Time of the last message (incl. heartbeats) from the push service."""
+        _, last_message = self._receiver_status()
+        if last_message is None:
+            return None
+        return dt_util.utc_from_timestamp(last_message)
+
+    @callback
+    def async_add_health_listener(self, update_callback: CALLBACK_TYPE) -> CALLBACK_TYPE:
+        """Register a callback for health changes (diagnostic sensors)."""
+        self._health_listeners.append(update_callback)
+
+        @callback
+        def remove() -> None:
+            with suppress(ValueError):
+                self._health_listeners.remove(update_callback)
+
+        return remove
+
+    @callback
+    def _notify_health(self) -> None:
+        for update_callback in list(self._health_listeners):
+            update_callback()
+
+    # ---- entity listeners -------------------------------------------------
 
     @callback
     def _async_update_listeners(self, doorbot_id: int | None = None) -> None:

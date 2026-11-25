@@ -109,6 +109,40 @@
       },
       "wifi_signal_category": {
         "name": "WLAN-Signalkategorie"
+      },
+      "event_connection": {
+        "name": "Event-Verbindung",
+        "state": {
+          "connected": "Verbunden",
+          "connecting": "Verbindet",
+          "reconnecting": "Verbindet neu",
+          "disconnected": "Getrennt"
+        },
+        "state_attributes": {
+          "reconnect_count": {
+            "name": "Neuverbindungen"
+          },
+          "last_reconnect": {
+            "name": "Letzte Neuverbindung"
+          },
+          "last_reconnect_reason": {
+            "name": "Grund der letzten Neuverbindung"
+          },
+          "last_heartbeat": {
+            "name": "Letztes Lebenszeichen"
+          }
+        }
+      },
+      "last_event": {
+        "name": "Letztes Event",
+        "state_attributes": {
+          "device": {
+            "name": "Gerät"
+          },
+          "kind": {
+            "name": "Art"
+          }
+        }
       }
     },
     "siren": {

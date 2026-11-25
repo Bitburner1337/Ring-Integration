@@ -24,6 +24,7 @@ from homeassistant.helpers.typing import StateType
 from .compat import has_capability
 from .coordinator import RingConfigEntry, RingDataCoordinator
 from .entity import RingDeviceT, RingEntity
+from .health import health_sensors
 
 # Coordinator is used to centralize the data updates
 PARALLEL_UPDATES = 0
@@ -44,6 +45,7 @@ async def async_setup_entry(
         for device in ring_data.devices.all_devices
         if description.exists_fn(device)
     ]
+    entities.extend(health_sensors(entry, ring_data.listen_coordinator))
 
     async_add_entities(entities)
 
