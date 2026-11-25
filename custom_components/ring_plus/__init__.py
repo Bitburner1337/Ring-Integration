@@ -12,6 +12,7 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers import device_registry as dr, entity_registry as er
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
+from . import fcm_fix
 from .const import CONF_LISTEN_CREDENTIALS, DOMAIN, PLATFORMS
 from .coordinator import (
     RingConfigEntry,
@@ -21,6 +22,9 @@ from .coordinator import (
 )
 
 _LOGGER = logging.getLogger(__name__)
+
+# Keep realtime events alive (see fcm_fix.py).
+fcm_fix.apply()
 
 
 def get_auth_user_agent() -> str:

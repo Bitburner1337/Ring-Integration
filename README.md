@@ -4,13 +4,17 @@ Eigene Ring-Integration (Domain `ring_plus`), basierend auf der offiziellen
 Home-Assistant-Ring-Integration, aber unabhängig von Core-Updates und mit
 Erweiterungen.
 
-## Stand (v0.1.0)
+## Stand (v0.1.1)
 
 - Alles, was die offizielle Ring-Integration kann: Anmeldung mit 2FA,
   Kameras (Live-Ansicht per WebRTC, letzte Aufnahme), Event-Entitäten für
   Klingeln und Bewegung, Lautstärke, Sirene, Licht, Sensoren.
 - **Neu:** Stick Up Cams vom Typ `cocoa_camera_v2` werden erkannt und bekommen
   Bewegungs-Events (die offizielle Integration meldet nur „Unknown kind“).
+- **Fix:** Echtzeit-Events (Klingeln, Bewegung) kommen wieder an. Ring schickt
+  die Schlüssel der Push-Nachrichten inzwischen ohne Base64-Auffüllung; die
+  Bibliothek firebase-messaging brach daran ab und beendete den Listener
+  („Incorrect padding“). Siehe `fcm_fix.py`.
 
 ## Geplant
 
