@@ -9,6 +9,6 @@
   "iot_class": "cloud_push",
   "issue_tracker": "https://github.com/Bitburner1337/Ring-Integration/issues",
   "loggers": ["ring_doorbell"],
-  "requirements": ["ring-doorbell==0.9.14"],
+  "requirements": ["ring-doorbell>=0.9.14"],
   "version": "0.1.0"
 }
