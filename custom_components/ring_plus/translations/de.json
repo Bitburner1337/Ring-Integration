@@ -127,9 +127,6 @@
           },
           "last_reconnect_reason": {
             "name": "Grund der letzten Neuverbindung"
-          },
-          "last_heartbeat": {
-            "name": "Letztes Lebenszeichen"
           }
         }
       },

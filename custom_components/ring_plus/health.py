@@ -88,7 +88,6 @@ class RingConnectionSensor(_HealthSensor):
             "reconnect_count": c.reconnect_count,
             "last_reconnect": c.last_reconnect.isoformat() if c.last_reconnect else None,
             "last_reconnect_reason": c.last_reconnect_reason,
-            "last_heartbeat": c.last_heartbeat.isoformat() if c.last_heartbeat else None,
         }
 
 

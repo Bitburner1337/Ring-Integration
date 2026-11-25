@@ -55,6 +55,7 @@ class RingData:
     devices: RingDevices
     devices_coordinator: RingDataCoordinator
     listen_coordinator: RingListenCoordinator
+    clips: Any = None  # ClipManager (ring_plus)
 
 
 type RingConfigEntry = ConfigEntry[RingData]

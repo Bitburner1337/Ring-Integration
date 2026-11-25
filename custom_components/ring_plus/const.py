@@ -46,3 +46,11 @@ CONN_CONNECTING: Final = "connecting"
 CONN_RECONNECTING: Final = "reconnecting"
 CONN_DISCONNECTED: Final = "disconnected"
 CONN_STATES: Final = [CONN_CONNECTED, CONN_CONNECTING, CONN_RECONNECTING, CONN_DISCONNECTED]
+
+# Clip download (ring_plus phase 3)
+CLIP_KINDS: Final = ("motion", "ding")
+CLIP_MAX_AGE = timedelta(hours=24)  # older history entries are not downloaded
+CLIP_MAX_FAILURES: Final = 5
+CLIP_MIN_FREE_BYTES: Final = 2 * 1024**3  # pause downloads below 2 GB free
+CLIP_RETENTION = timedelta(days=7)  # local files older than this are deleted
+CLIP_STORE_KEEP = timedelta(days=14)  # remember downloaded ids this long

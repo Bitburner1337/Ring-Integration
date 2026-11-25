@@ -13,6 +13,7 @@ from homeassistant.helpers import device_registry as dr, entity_registry as er
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from . import fcm_fix
+from .clips import ClipManager
 from .const import CONF_LISTEN_CREDENTIALS, DOMAIN, PLATFORMS
 from .coordinator import (
     RingConfigEntry,
@@ -80,9 +81,16 @@ async def async_setup_entry(hass: HomeAssistant, entry: RingConfigEntry) -> None
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
 
+    # Phase 3: save finished recordings to /media/ring
+    clips = ClipManager(hass, entry.entry_id, devices_coordinator)
+    entry.runtime_data.clips = clips
+    await clips.async_setup()
+
 
 async def async_unload_entry(hass: HomeAssistant, entry: RingConfigEntry) -> None:
     """Unload Ring entry."""
+    if (clips := getattr(entry.runtime_data, "clips", None)) is not None:
+        await clips.async_unload()
     await hass.config_entries.async_unload_platforms_or_raise(entry, PLATFORMS)
 
 
