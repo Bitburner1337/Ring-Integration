@@ -56,6 +56,18 @@ CLIP_MIN_FREE_BYTES: Final = 2 * 1024**3  # pause downloads below 2 GB free
 CLIP_RETENTION = timedelta(days=7)  # local files older than this are deleted
 CLIP_STORE_KEEP = timedelta(days=14)  # remember downloaded ids this long
 
+# Cloud archive in Internxt (phase 6)
+ARCHIVE_ROOT_FOLDER = "Ring-Clips"
+ARCHIVE_BACKOFF = (
+    timedelta(minutes=1),
+    timedelta(minutes=5),
+    timedelta(minutes=15),
+    timedelta(minutes=30),
+    timedelta(minutes=60),
+)
+ARCHIVE_IDLE_RECHECK = timedelta(minutes=2)  # Internxt not loaded: look again
+ARCHIVE_UPLOAD_TIMEOUT = timedelta(minutes=10)  # per file
+
 # Event history (phase 5)
 HISTORY_KEEP = timedelta(days=30)
 HISTORY_MAX_EVENTS = 3000

@@ -13,6 +13,7 @@ from homeassistant.helpers import device_registry as dr, entity_registry as er
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from . import fcm_fix
+from .archive import ClipArchive
 from .clips import ClipManager
 from .history import EventHistory
 from .const import CONF_LISTEN_CREDENTIALS, DOMAIN, PLATFORMS
@@ -83,6 +84,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: RingConfigEntry) -> None
     # Phase 3: save finished recordings to /media/ring
     clips = ClipManager(hass, entry.entry_id, devices_coordinator)
     entry.runtime_data.clips = clips
+    # Phase 6: upload clips to Internxt (before clips start, so the
+    # retention never deletes a clip that is not in the cloud yet)
+    archive = ClipArchive(hass, entry.entry_id, clips)
+    entry.runtime_data.archive = archive
+    await archive.async_setup()
     await clips.async_setup()
     # Phase 5: event history (calendar + sensor), needed by the platforms
     history = EventHistory(
@@ -100,6 +106,8 @@ async def async_unload_entry(hass: HomeAssistant, entry: RingConfigEntry) -> Non
         await history.async_unload()
     if (clips := getattr(entry.runtime_data, "clips", None)) is not None:
         await clips.async_unload()
+    if (archive := getattr(entry.runtime_data, "archive", None)) is not None:
+        await archive.async_unload()
     await hass.config_entries.async_unload_platforms_or_raise(entry, PLATFORMS)
 
 

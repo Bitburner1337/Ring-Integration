@@ -4,7 +4,7 @@ Eigene Ring-Integration (Domain `ring_plus`), basierend auf der offiziellen
 Home-Assistant-Ring-Integration, aber unabhängig von Core-Updates und mit
 Erweiterungen.
 
-## Stand (v0.5.0)
+## Stand (v0.6.0)
 
 - Alles, was die offizielle Ring-Integration kann: Anmeldung mit 2FA,
   Kameras (Live-Ansicht per WebRTC, letzte Aufnahme), Event-Entitäten für
@@ -38,13 +38,20 @@ Erweiterungen.
   Events des Tages, das Attribut `events` enthält die letzten 20 (Zeit,
   Kamera, Art, Clip). Beim Start werden fehlende Events aus dem
   Ring-Verlauf nachgeladen.
+- **Cloud-Archiv in Internxt:** Jeder Clip (MP4 + Vorschaubild) wird über die
+  Aktion `internxt.upload` der Internxt-Integration nach
+  `Ring-Clips/<Kamera>/<Datum>/` hochgeladen, ein Clip nach dem anderen.
+  Bei Fehlern wird später erneut versucht (1, 5, 15, 30, 60 Minuten).
+  Lokal gelöscht wird ein Clip erst nach der Aufbewahrungszeit (7 Tage)
+  **und** nur, wenn Internxt den Upload bestätigt hat. Der Diagnose-Sensor
+  „Cloud-Archiv Warteschlange“ zeigt, wie viele Clips noch warten.
 
 > Tipp: Den Ordner „Medien“ aus den automatischen HA-Backups ausnehmen,
 > sonst landen die Clips in jedem Backup.
 
 ## Geplant
 
-Cloud-Archiv über die Internxt-Integration, Optionen-Dialog.
+Optionen-Dialog (z. B. Aufbewahrungszeit), weitere Sensoren, Umstieg von der offiziellen Ring-Integration.
 
 ## Installation
 

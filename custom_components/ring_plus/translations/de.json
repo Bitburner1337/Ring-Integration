@@ -153,6 +153,35 @@
             "name": "Letzte Events"
           }
         }
+      },
+      "archive_queue": {
+        "name": "Cloud-Archiv Warteschlange",
+        "state_attributes": {
+          "status": {
+            "name": "Status",
+            "state": {
+              "idle": "Alles hochgeladen",
+              "uploading": "Lädt hoch",
+              "retry_wait": "Wartet auf neuen Versuch",
+              "no_account": "Internxt nicht verfügbar"
+            }
+          },
+          "uploaded_local_clips": {
+            "name": "Hochgeladen (noch lokal)"
+          },
+          "last_upload": {
+            "name": "Letzter Upload"
+          },
+          "last_upload_file": {
+            "name": "Letzte Datei"
+          },
+          "last_error": {
+            "name": "Letzter Fehler"
+          },
+          "next_try": {
+            "name": "Nächster Versuch"
+          }
+        }
       }
     },
     "siren": {

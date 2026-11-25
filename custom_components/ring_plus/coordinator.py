@@ -57,6 +57,7 @@ class RingData:
     listen_coordinator: RingListenCoordinator
     clips: Any = None  # ClipManager (ring_plus)
     history: Any = None  # EventHistory (ring_plus)
+    archive: Any = None  # ClipArchive (ring_plus)
 
 
 type RingConfigEntry = ConfigEntry[RingData]

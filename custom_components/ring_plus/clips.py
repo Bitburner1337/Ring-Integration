@@ -86,6 +86,9 @@ class ClipManager:
         self._again = False
         self._unsubs: list[Any] = []
         self._saved_callbacks: list[Any] = []
+        # ClipArchive (phase 6): when set, a clip is only deleted locally
+        # after Internxt confirmed its upload.
+        self.archive: Any = None
         media = hass.config.media_dirs.get("local") or hass.config.path("media")
         self.root = Path(media) / "ring"
         # Shown later by sensors (phase 7)
@@ -302,19 +305,36 @@ class ClipManager:
     # ---- housekeeping ---------------------------------------------------
 
     async def _async_cleanup(self, now: datetime | None = None) -> None:
-        """Delete local clips older than the retention and forget old ids."""
-        limit = time.time() - CLIP_RETENTION.total_seconds()
+        """Delete local clips older than the retention and forget old ids.
 
-        def _clean() -> int:
+        With the cloud archive active, only clips whose upload Internxt
+        confirmed are deleted; the others stay until they are uploaded.
+        """
+        limit = time.time() - CLIP_RETENTION.total_seconds()
+        archive = self.archive
+        uploaded = archive.uploaded_paths() if archive is not None else None
+
+        def _clean() -> tuple[int, list[str], int]:
             removed = 0
+            removed_mp4: list[str] = []
+            kept = 0
             if not self.root.is_dir():
-                return 0
+                return 0, [], 0
             for path in list(self.root.rglob("*")):
                 if path.is_file() and path.suffix in (".mp4", ".part"):
                     with suppress(OSError):
                         if path.stat().st_mtime < limit:
+                            if (
+                                path.suffix == ".mp4"
+                                and uploaded is not None
+                                and str(path) not in uploaded
+                            ):
+                                kept += 1  # not in the cloud yet
+                                continue
                             path.unlink()
                             removed += 1
+                            if path.suffix == ".mp4":
+                                removed_mp4.append(str(path))
                             # the preview belongs to the clip
                             path.with_suffix(".jpg").unlink(missing_ok=True)
                 elif path.is_file() and path.suffix == ".jpg":
@@ -328,11 +348,15 @@ class ClipManager:
                 if folder.is_dir():
                     with suppress(OSError):
                         folder.rmdir()  # only works when empty
-            return removed
+            return removed, removed_mp4, kept
 
-        removed = await self.hass.async_add_executor_job(_clean)
+        removed, removed_mp4, kept = await self.hass.async_add_executor_job(_clean)
         if removed:
             _LOGGER.info("Removed %s old Ring clip files (older than %s)", removed, CLIP_RETENTION)
+        if kept:
+            _LOGGER.info("Keeping %s old Ring clips until their upload to Internxt is confirmed", kept)
+        if archive is not None and removed_mp4:
+            archive.forget(removed_mp4)
         keep_after = time.time() - CLIP_STORE_KEEP.total_seconds()
         self._done = {k: v for k, v in self._done.items() if v.get("ts", 0) > keep_after}
         if len(self._failures) > 500:

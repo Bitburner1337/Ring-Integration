@@ -34,6 +34,9 @@
       },
       "recent_events": {
         "default": "mdi:format-list-bulleted"
+      },
+      "archive_queue": {
+        "default": "mdi:cloud-upload"
       }
     },
     "switch": {

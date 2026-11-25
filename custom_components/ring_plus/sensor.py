@@ -25,6 +25,7 @@ from .compat import has_capability
 from .coordinator import RingConfigEntry, RingDataCoordinator
 from .entity import RingDeviceT, RingEntity
 from .health import health_sensors
+from .archive_sensor import archive_sensors
 from .history_sensor import history_sensors
 
 # Coordinator is used to centralize the data updates
@@ -48,6 +49,7 @@ async def async_setup_entry(
     ]
     entities.extend(health_sensors(entry, ring_data.listen_coordinator))
     entities.extend(history_sensors(entry))
+    entities.extend(archive_sensors(entry))
 
     async_add_entities(entities)
 

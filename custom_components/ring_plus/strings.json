@@ -153,6 +153,35 @@
             "name": "Recent events"
           }
         }
+      },
+      "archive_queue": {
+        "name": "Cloud archive queue",
+        "state_attributes": {
+          "status": {
+            "name": "Status",
+            "state": {
+              "idle": "All uploaded",
+              "uploading": "Uploading",
+              "retry_wait": "Waiting to retry",
+              "no_account": "Internxt not available"
+            }
+          },
+          "uploaded_local_clips": {
+            "name": "Uploaded (still local)"
+          },
+          "last_upload": {
+            "name": "Last upload"
+          },
+          "last_upload_file": {
+            "name": "Last file"
+          },
+          "last_error": {
+            "name": "Last error"
+          },
+          "next_try": {
+            "name": "Next try"
+          }
+        }
       }
     },
     "siren": {
